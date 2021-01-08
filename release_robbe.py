@@ -1,11 +1,6 @@
 """
 
-Get new songs from artists from specific playlists
-
-Subtasks:
-    - Get artists from playlists
-    - Manage blocklist, allowlist, greylist
-
+Get and manage new songs and artists from Spotify
 
 :Author: Andreas Lindlbauer (@alindl)
 :Copyright: (c) 2021 Andreas Lindlbauer
@@ -18,7 +13,7 @@ __docformat__ = 'reStructuredText'
 import difflib
 import subprocess
 import math
-import re
+import os.path
 import sys
 from enum import Enum
 import pygame
@@ -50,6 +45,7 @@ class States(Enum):
     BLOCKLIST = "BL"
     POP_GREY = "PG"
     SOURCE = "SOURCE"
+    # NOTE Using int would improve performance, but result in worse legibility
 
 
 DIALOG = Dialog(dialog="dialog")
@@ -69,12 +65,14 @@ def main():
     One function to start them all
 
     """
-    pygame.mixer.init()
-    pygame.mixer.music.load("mach_die_robbe.mp3")
-    pygame.mixer.music.play(-1)
+    if os.path.isfile('mach_die_robbe.mp3'):
+        pygame.mixer.init()
+        pygame.mixer.music.load("mach_die_robbe.mp3")
+        pygame.mixer.music.play(-1)
+
     state = States.START
     while True:
-        while state != States.DONE:
+        while state not in (States.NEW_RELEASES, States.TOP_10_GREY):
             state = menu(state)
             if state == States.EXIT:
                 #clear_screen()
@@ -92,28 +90,11 @@ def main():
         if token:
 
             spot_conn = spotipy.Spotify(auth=token)
+            #spot_conn.trace = False
 
-            sort_all_lists()
+            fi.sort_all_lists(DIALOG)
 
-            source = conf.get_key('Auth', 'source')
-            if source == 'top_grey':
-                get_artists_from_list(spot_conn, fi.Lists.GREYLIST)
-                get_top_songs(spot_conn)
-            elif source == 'allowlist':
-                get_artists_from_list(spot_conn, fi.Lists.ALLOWLIST)
-            elif source == 'saved':
-                get_artists_from_followed(spot_conn)
-            else: # Playlist
-                if not get_artists_from_playlist(spot_conn):
-                    state = States.START
-                    continue
-
-            if source != 'top_grey':
-                if not get_new_songs(spot_conn):
-                    state = States.START
-                    continue
-
-            spot_conn.trace = False
+            get_songs(spot_conn, state)
 
             if not add_songs_to_playlist(spot_conn):
                 DIALOG.msgbox("Something didn't go right, while adding songs to your playlist")
@@ -124,38 +105,18 @@ def main():
             state = States.START
             clear_screen()
 
-            sort_all_lists()
+            fi.sort_all_lists(DIALOG)
         else:
             print("Can't get token for", conf.get_key('Auth', 'username'))
 
         clear_screen()
 
-
-def check_conf():
-    """
-
-    Check if credentials were saved
-
-    """
-    information = [conf.get_key('Auth', 'username'),
-                   conf.get_key('Auth', 'client_id'),
-                   conf.get_key('Auth', 'client_secret'),
-                   conf.get_key('Other', 'country'),
-                   conf.get_key('Lists', 'allowlist'),
-                   conf.get_key('Lists', 'greylist'),
-                   conf.get_key('Lists', 'blocklist')
-                   ]
-    empty = False
-    for date in information:
-        if not date:
-            empty = True
-    if empty: # Some are empty
-        return False, information
-    # All entries have information
-    return True, information
-
-
 def start_menu():
+    """
+
+    Main menu
+
+    """
     text = """
 　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　
 　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　
@@ -199,28 +160,41 @@ def start_menu():
                 "Modify source of artists (playlist/allowlist/following)"),
                (States.EXIT.value,
                 "Quit")]
-    code, state = DIALOG.menu(text, choices=choices, no_tags=True, no_cancel=True, height=39, width=108, tab_len=1)
+    code, state = DIALOG.menu(text, choices=choices, no_tags=True,
+            no_cancel=True, height=39, width=108, tab_len=1)
     if code != DIALOG.OK:
         return States.EXIT
     return States(state)
 
 def rel_menu():
-    conf_set, _ = check_conf()
+    """
+    Start going for new releases from artists from your source.
+    Also check if source was set
+
+    """
+    conf_set, _ = conf.get_credentials()
     if conf_set:
-        if conf.get_key('Other', 'source') == 'top_grey':
+        if not conf.get_key('Other', 'source'):
             return States.SOURCE
-        else:
-            return States.DONE
+        return States.NEW_RELEASES
     return States.CONF
 
 def top_menu():
-    conf_set, _ = check_conf()
+    """
+    Pick top 10 releases from all artists of your greylist.
+
+    """
+    conf_set, _ = conf.get_credentials()
     if conf_set:
-        conf.set_key('Other', 'source', 'top_grey')
-        return States.DONE
+        return States.TOP_10_GREY
     return States.CONF
 
 def date_menu():
+    """
+    Menu to pick a day, that will be used to get releases from there to today.
+
+    """
+    # NOTE Weird way to say that
     last_check = conf.read_time()
     code, date = DIALOG.calendar("From which date on do you want to add releases?",
                                  day=last_check.day,
@@ -229,10 +203,14 @@ def date_menu():
                                  title="Configure checking date")
 
     if code == DIALOG.OK:
-        conf.set_key('Auth', 'last_check', str(conf.convert_list_to_ts(date)))
+        conf.set_key('Other', 'last_check', str(conf.convert_list_to_ts(date)))
     return States.START
 
 def do_exit():
+    """
+    Exit programm, but clear screen just before that
+
+    """
     clear_screen()
     return States.EXIT
 
@@ -242,19 +220,39 @@ def menu(state):
     Menu to check all configs
 
     """
-    switcher = {
-        States.START: lambda: start_menu(),
-        States.NEW_RELEASES: lambda: rel_menu(),
-        States.TOP_10_GREY: lambda: top_menu(),
-        States.CONF: lambda: configure_prog(),
-        States.DATE: lambda: date_menu(),
-        States.LISTS: lambda: list_chooser(),
-        States.POP_GREY: lambda: edit_chooser(fi.Lists.GREYLIST, States.POP_GREY),
-        States.SOURCE: lambda: source_chooser()
-            }
 
-    return switcher.get(state, lambda : do_exit())()
+    if state == States.START:
+        output = start_menu()
+    elif state == States.NEW_RELEASES:
+        output = rel_menu()
+    elif state == States.TOP_10_GREY:
+        output = top_menu()
+    elif state == States.CONF:
+        output = configure_prog()
+    elif state == States.DATE:
+        output = date_menu()
+    elif state == States.LISTS:
+        output = list_chooser()
+    elif state == States.POP_GREY:
+        output = edit_chooser(fi.Lists.GREYLIST, States.POP_GREY)
+    elif state == States.SOURCE:
+        output = source_chooser()
+    else:
+        output = do_exit()
+    return output
 
+    # Somehow, pylint doesn't like my switch-case implementation, too many lambdas
+    #switcher = {
+    #    States.START: lambda: start_menu(),
+    #    States.NEW_RELEASES: lambda: rel_menu(),
+    #    States.TOP_10_GREY: lambda: top_menu(),
+    #    States.CONF: lambda: configure_prog(),
+    #    States.DATE: lambda: date_menu(),
+    #    States.LISTS: lambda: list_chooser(),
+    #    States.POP_GREY: lambda: edit_chooser(fi.Lists.GREYLIST, States.POP_GREY),
+    #    States.SOURCE: lambda: source_chooser()
+    #         }
+    #return switcher.get(state, lambda : do_exit())()
 
 def source_chooser():
     """
@@ -268,7 +266,7 @@ def source_chooser():
                                               ("saved", "Artists I follow")], no_tags=True)
 
     if code == DIALOG.OK:
-        conf.set_key('Auth', 'source', source)
+        conf.set_key('Other', 'source', source)
     return States.START
 
 
@@ -406,7 +404,8 @@ def configure_prog():
     Edit Spotify credentials
 
     """
-    _, info = check_conf()
+    _, info = conf.get_credentials()
+    valid, error_msg, add_height = conf.check_credentials(info)
 
     elements = [
         ("Username", 1, 1,
@@ -432,34 +431,17 @@ def configure_prog():
          7, 20, 32, 32)
         ]
 
-    height = 14
-    code, fields = DIALOG.form("Please fill in your Spotify credentials:",
+    height = 14 + add_height
+    code, fields = DIALOG.form("Please fill in your Spotify credentials:" + error_msg,
                                elements, width=80, height=height)
 
     if code != DIALOG.OK:
         return States.START
 
-    re_client = "^[a-z0-9]{32}$"
-    re_iso_3166_1_alpha_2 = re.compile(r"^(AF|AX|AL|DZ|AS|AD|AO|AI|AQ|AG|AR|AM|AW|AU|AT|AZ|BS|BH|BD"
-    r"|BB|BY|BE|BZ|BJ|BM|BT|BO|BQ|BA|BW|BV|BR|IO|BN|BG|BF|BI|KH|CM|CA|CV|KY|CF|TD|CL|CN|CX|CC|CO"
-    r"|KM|CG|CD|CK|CR|CI|HR|CU|CW|CY|CZ|DK|DJ|DM|DO|EC|EG|SV|GQ|ER|EE|ET|FK|FO|FJ|FI|FR|GF|PF|TF"
-    r"|GA|GM|GE|DE|GH|GI|GR|GL|GD|GP|GU|GT|GG|GN|GW|GY|HT|HM|VA|HN|HK|HU|IS|IN|ID|IR|IQ|IE|IM|IL"
-    r"|IT|JM|JP|JE|JO|KZ|KE|KI|KP|KR|KW|KG|LA|LV|LB|LS|LR|LY|LI|LT|LU|MO|MK|MG|MW|MY|MV|ML|MT|MH"
-    r"|MQ|MR|MU|YT|MX|FM|MD|MC|MN|ME|MS|MA|MZ|MM|NA|NR|NP|NL|NC|NZ|NI|NE|NG|NU|NF|MP|NO|OM|PK|PW"
-    r"|PS|PA|PG|PY|PE|PH|PN|PL|PT|PR|QA|RE|RO|RU|RW|BL|SH|KN|LC|MF|PM|VC|WS|SM|ST|SA|SN|RS|SC|SL"
-    r"|SG|SX|SK|SI|SB|SO|ZA|GS|SS|ES|LK|SD|SR|SJ|SZ|SE|CH|SY|TW|TJ|TZ|TH|TL|TG|TK|TO|TT|TN|TR|TM"
-    r"|TC|TV|UG|UA|AE|GB|US|UM|UY|UZ|VU|VE|VN|VG|VI|WF|EH|YE|ZM|ZW)$")
-    re_file = re.compile(r"^\/?([A-z0-9-_+]+\/)*([A-z0-9]+\.(csv))$")
+    valid, error_msg, add_height = conf.check_credentials(fields)
+    height = 14 + add_height
 
-    while not fields[0] or \
-          not re.search(re_client, fields[1]) or \
-          not re.search(re_client, fields[2]) or \
-          not re.search(re_iso_3166_1_alpha_2, fields[3]) or \
-          not re.search(re_file, fields[4]) or \
-          not re.search(re_file, fields[5]) or \
-          not re.search(re_file, fields[6]):
-
-
+    while not valid:
         elements = [
             ("Username", 1, 1, fields[0], 1, 20, 32, 32),
             ("Client ID", 2, 1, fields[1], 2, 20, 32, 32),
@@ -469,39 +451,15 @@ def configure_prog():
             ("Greylist", 6, 1, fields[5], 6, 20, 32, 32),
             ("Blocklist", 7, 1, fields[6], 7, 20, 32, 32)
             ]
-
-        error_msg = ""
-
-        if not fields[0]:
-            height += 1
-            error_msg += "\n· No Username"
-        if not re.search(re_client, fields[1]):
-            height += 1
-            error_msg += "\n· Not a proper Client ID"
-        if not re.search(re_client, fields[2]):
-            height += 1
-            error_msg += "\n· Not a proper Client Secret"
-        if not re.search(re_iso_3166_1_alpha_2, fields[3]):
-            height += 1
-            error_msg += "\n· Not a valid two-letter country code(ISO 3166-1 alpha-2)"
-        if not re.search(re_file, fields[4]):
-            height += 1
-            error_msg += "\n· Allowlist does not have a valid filename/path"
-        if not re.search(re_file, fields[5]):
-            height += 1
-            error_msg += "\n· Greylist does not have a valid filename/path"
-        if not re.search(re_file, fields[6]):
-            height += 1
-            error_msg += "\n· Blocklist does not have a valid filename/path"
-
-
         code, fields = DIALOG.form("Please fill in your Spotify credentials:" + error_msg,
                                    elements, width=80, height=height)
         if code != DIALOG.OK:
             return States.START
 
+        valid, error_msg, add_height = conf.check_credentials(fields)
+        height = 14 + add_height
+
     if code == DIALOG.OK:
-        #fields = [username, country, client_id, client_secret]
         conf.set_key('Auth', 'username', fields[0])
         conf.set_key('Auth', 'client_id', fields[1])
         conf.set_key('Auth', 'client_secret', fields[2])
@@ -634,7 +592,7 @@ def check_artist_albums(spot_conn, artist_info):
     albums = get_artist_albums(spot_conn, artist_info[1])
     #i = 0
     #DIALOG.gauge_start(text="Gathering songs by %s ..." % (artist_info[0]), percent=0)
-    total_albums = len(albums)
+    #total_albums = len(albums)
 
     unique = set()  # skip duplicate albums
     for album in albums:
@@ -721,7 +679,7 @@ def check_artist_top_songs(spot_conn, artist_id):
 
     """
 
-    country = conf.get_key('Auth', 'country')
+    country = conf.get_key('Other', 'country')
     top_tracks = spot_conn.artist_top_tracks(artist_id, country=country if country else "US")
 
     num_tracks = 0
@@ -806,7 +764,6 @@ def get_artists_from_playlist(spot_conn):
     playlists = choose_playlists(spot_conn)
     if not playlists:
         return False
-    
 
     # Get set of all needed artist id's
     fst_artist = True
@@ -928,6 +885,34 @@ def get_new_songs(spot_conn):
     DIALOG.gauge_stop()
     return True
 
+def get_songs(spot_conn, state):
+    """
+
+    Fetch songs from any source
+
+    """
+    source = conf.get_key('Other', 'source')
+    if state == States.TOP_10_GREY:
+        get_artists_from_list(spot_conn, fi.Lists.GREYLIST)
+        get_top_songs(spot_conn)
+    elif state == States.NEW_RELEASES:
+        if source == 'allowlist':
+            get_artists_from_list(spot_conn, fi.Lists.ALLOWLIST)
+        elif source == 'saved':
+            get_artists_from_followed(spot_conn)
+        else: # Playlist(s)
+            if not get_artists_from_playlist(spot_conn):
+                state = States.START
+                return False, state
+
+        if not get_new_songs(spot_conn):
+            state = States.START
+            return False, state
+    else:
+        # Wrong state
+        DIALOG.msgbox("You ended up in a wrong state, back to the menu")
+        return False, None
+    return True, None
 
 def add_songs_to_playlist(spot_conn):
     """
@@ -955,26 +940,6 @@ def add_songs_to_playlist(spot_conn):
     else:
         return False
     return True
-
-
-def sort_all_lists():
-    """
-
-    Sort all 3 lists
-
-    """
-    DIALOG.gauge_start(text="Sorting all lists", percent=0)
-
-    fi.sort_list(fi.Lists.ALLOWLIST)
-    DIALOG.gauge_update(round(1/3)*100)
-
-    fi.sort_list(fi.Lists.BLOCKLIST)
-    DIALOG.gauge_update(round(2/3)*100)
-
-    fi.sort_list(fi.Lists.GREYLIST)
-    DIALOG.gauge_update(round(3/3)*100)
-
-    DIALOG.gauge_stop()
 
 def clear_screen():
     """ Clear screen to avoid merging of output """

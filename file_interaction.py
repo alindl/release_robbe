@@ -63,7 +63,7 @@ def add_to_list(list_name, artist):
                 this_list.write(artist[0] + '\n')
             else:
                 raise ValueError("Should be [artistname, id] or [artist]")
-            # FIXME What if it is a string?
+            # NOTE What if it is a string?
             return True
     return False
 
@@ -114,25 +114,24 @@ def sort_list(list_name):
         #for line in sorted_list:
         #    this_list.write(line)
 
-def fast_search(list_name, artist):
-    d = {}
+def sort_all_lists(dialog):
+    """
 
-    f = open(list_name.value, "r")
-    for line in f:
-        line = line.rstrip()
-        l = len(line)+1
-        for i in range(1,l):
-            d[line[:i]] = True
-    f.close()
+    Sort all 3 lists
 
+    """
+    dialog.gauge_start(text="Sorting all lists", percent=0)
 
-    while True:
-        w = artist
-        if not w:
-            break
+    sort_list(Lists.ALLOWLIST)
+    dialog.gauge_update(round(1/3)*100)
 
-        if w in d:
-            return w
+    sort_list(Lists.BLOCKLIST)
+    dialog.gauge_update(round(2/3)*100)
+
+    sort_list(Lists.GREYLIST)
+    dialog.gauge_update(round(3/3)*100)
+
+    dialog.gauge_stop()
 
 
 def bin_search_on_list(list_name, artist):
@@ -179,29 +178,28 @@ def bin_search_on_list(list_name, artist):
         return False
 
 
-def bisect_right(rows, artist, lo=0, hi=None):
-    if hi is None:
-        hi = len(rows)
-    while lo < hi:
-        mid = (lo + hi) // 2
-        if artist[0] < rows[mid][0]:
-            hi = mid
-        else:
-            lo = mid + 1
-    return lo
+def bisect_left(rows, artist, low=0, high=None):
+    """
 
-def bisect_left(rows, artist, lo=0, hi=None):
-    if hi is None:
-        hi = len(rows)
-    while lo < hi:
-        mid = (lo + hi) // 2
+    Locate the insertion point for rows in artist to maintain sorted order.
+
+    """
+    if high is None:
+        high = len(rows)
+    while low < high:
+        mid = (low + high) // 2
         if rows[mid][0].lower() < artist[0].lower():
-            lo = mid + 1
+            low = mid + 1
         else:
-            hi = mid
-    return lo
+            high = mid
+    return low
 
 def search_list(list_name, artist):
+    """
+
+    Search trough list using binary search
+
+    """
     whole_list, _ = get_list(list_name)
     idx = bisect_left(whole_list, artist)
     #print(len(whole_list), idx)
@@ -330,7 +328,7 @@ def delete_from_list(list_name, artist):
 
     """
     # Parameter checking
-    # TODO Should probably be it's own method
+    # NOTE Should probably be it's own method
     if not isinstance(list_name,Lists):
         return False
     if isinstance(artist, list):
@@ -360,7 +358,7 @@ def delete_from_list(list_name, artist):
             # I have to write the whole file anyway I think, so no time lost
             # First check the id, then the name -> safer, less possibility of false positive
             # Gotta check the timing here, could be slower
-            if ((artist_id != line[1]) if (artist_id and (len(line) == 2)) else True):
+            if ((artist_id != line[1]) if artist_id and (len(line) == 2) else True):
                 if line[0] != artist_name:
                     write_csv.writerow(line)
                 else:
