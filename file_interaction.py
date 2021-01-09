@@ -30,23 +30,25 @@ class Lists(Enum):
     DELETE = "delete"
 
 
-# def edit_list(list_name, text):
-#     """
-#
-#     Edit whole list
-#
-#     """
-#     # I'm trusting that nobody would use the wrong delimiter
-#     # I could make a form with all entries to solve that
-#     with open(list_name.value, 'w') as this_list:
-#         this_list.write(text)
-
-
 def add_to_list(list_name, artist):
     """
 
-    Write artist to list file
+    Add artist to list file
 
+    Parameters
+    ----------
+    list_name : Lists Enum
+    artist : List [str(,str)]
+
+    Returns
+    -------
+    `True` if it was added, `False` if not.
+    If the target was `delete`, do nothing and return `True`.
+
+    Examples
+    --------
+    >>> add_to_list(Lists.BLOCKLIST, ['ABBA','0LcJLqbBmaGUft1e9Mm8HV'])
+    True
     """
     if list_name.value == "delete":
         return True
@@ -59,7 +61,8 @@ def add_to_list(list_name, artist):
                 else:
                     print("invalid ID")
             elif len(artist) == 1:
-                # We could also add the id here
+                # NOTE We could also add the id here
+                # But as we get this data from Spotify, it must have an id
                 this_list.write(artist[0] + '\n')
             else:
                 raise ValueError("Should be [artistname, id] or [artist]")
@@ -70,9 +73,20 @@ def add_to_list(list_name, artist):
 
 def get_length_of_list(list_name):
     """
-
     Get length of the list == number of artists
 
+    Parameters
+    ----------
+    list_name : Lists Enum
+
+    Returns
+    -------
+    Length of list
+
+    Examples
+    --------
+    >>> get_length_of_list(Lists.ALLOWLIST)
+    42
     """
     with open(list_name.value) as this_list:
         return sum(1 for line in this_list)
@@ -83,22 +97,32 @@ def get_list(list_name):
 
     Get all artists + id from list as list and length
 
+    Parameters
+    ----------
+    list_name : Lists Enum
+
+    Returns
+    -------
+    Sorted list of artist list entries as [str(,str)], them being name and id
+
+    Examples
+    --------
+    >>> get_list(Lists.ALLOWLIST)
+    ['ABBA','0LcJLqbBmaGUft1e9Mm8HV'], [.,.], ...]
     """
-    #all_artists = []
     with open(list_name.value, 'r') as this_list:
         csv_reader = csv.reader(this_list, delimiter=';')
         all_artists = list(csv_reader)
         return all_artists, len(all_artists)
-        #for row in csv_reader:
-        #    i += 1
-        #    all_artists.append(row)
-    #return all_artists, i
 
 def sort_list(list_name):
     """
 
-    Sort a list
+    Sort a list.
 
+    Parameters
+    ----------
+    list_name : Lists Enum
     """
     with open(list_name.value, 'r') as this_list:
         # Read list from file
@@ -111,13 +135,15 @@ def sort_list(list_name):
         sorted_list = list(map(lambda y: y+'\n',[';'.join(x) for x in sorted_list]))
     with open(list_name.value, 'w') as this_list:
         this_list.writelines(sorted_list)
-        #for line in sorted_list:
-        #    this_list.write(line)
 
 def sort_all_lists(dialog):
     """
 
-    Sort all 3 lists
+    Sort all 3 lists, show progress bar.
+
+    Parameters
+    ----------
+    dialog : dialog.Dialog object
 
     """
     dialog.gauge_start(text="Sorting all lists", percent=0)
@@ -134,55 +160,27 @@ def sort_all_lists(dialog):
     dialog.gauge_stop()
 
 
-def bin_search_on_list(list_name, artist):
-    """
-
-    Do binary search on a list
-
-    """
-    with open(list_name.value, 'r', encoding='utf-8') as this_list:
-        low = 0
-        this_list.seek(0, 2)
-        high = this_list.tell()
-        while low < high:
-            mid = (low+high)//2
-            pointer = mid
-            while pointer >= 0:
-                this_list.seek(pointer)
-                #print(this_list.read())
-                if this_list.read(1) == '\n':
-                    break
-                pointer -= 1
-            if pointer < 0:
-                this_list.seek(0)
-            line = this_list.readline()
-            if line.split(';')[0] < artist[0]:
-                low = mid+1
-            else:
-                high = mid
-
-        pointer = low
-        while pointer >= 0:
-            this_list.seek(pointer)
-            if this_list.read(1) == '\n':
-                break
-            pointer -= 1
-        if pointer < 0:
-            this_list.seek(0)
-
-        line = this_list.readline()
-        if line[-1:] == '\n':
-            line = line[:-1]
-        if line.split(';')[0] == artist[0]:
-            return line.split(';')
-        return False
-
-
 def bisect_left(rows, artist, low=0, high=None):
     """
 
-    Locate the insertion point for rows in artist to maintain sorted order.
+    Binary search on rows to find, where artist should be.
 
+    Parameters
+    ----------
+    rows : List
+    artist : List [str(,str)]
+    low : int
+    high : int
+
+    Returns
+    -------
+    Return possible entry position.
+
+    Examples
+    --------
+    >>> bisect_left([['ABBA','0LcJLqbBmaGUft1e9Mm8HV'], [.,.], ...],
+                    ['PSY', '2dd5mrQZvg6SmahdgVKDzh'])
+    42
     """
     if high is None:
         high = len(rows)
@@ -197,17 +195,31 @@ def bisect_left(rows, artist, low=0, high=None):
 def search_list(list_name, artist):
     """
 
-    Search trough list using binary search
+    Search through list using binary search.
 
+    Parameters
+    ----------
+    list_name : Lists Enum
+    artist : List [str(,str)]
+
+    Returns
+    -------
+    Return possible entry if found, `False` or not.
+
+    Examples
+    --------
+    >>> check_if_on_list(Lists.BLOCKLIST, ['PSY', '2dd5mrQZvg6SmahdgVKDzh'])
+    ['PSY', '2dd5mrQZvg6SmahdgVKDzh']
+    >>> check_if_on_list(Lists.BLOCKLIST, 'PSY')
+    ['PSY', '2dd5mrQZvg6SmahdgVKDzh']
+    >>> search_list(Lists.ALLOWLIST, ['PSY', '2dd5mrQZvg6SmahdgVKDzh'])
+    False
     """
     whole_list, _ = get_list(list_name)
     idx = bisect_left(whole_list, artist)
-    #print(len(whole_list), idx)
     if len(whole_list) <= idx or \
        (isinstance(artist, list) and whole_list[idx][0].lower() != artist[0].lower()) or \
        (isinstance(artist, str) and whole_list[idx][0].lower() != artist.lower()):
-        #if len(whole_list) > idx:
-        #    print(list_name.value, whole_list[idx], artist)
         return False
     return whole_list[idx]
 
@@ -216,46 +228,69 @@ def check_if_on_list(list_name, artist):
 
     Check if artist is on this list
 
+    Parameters
+    ----------
+    list_name : Lists Enum
+    artist : List [str(,str)]
+
+    Returns
+    -------
+    `True` if it is on the list, `False` if not.
+
+    Examples
+    --------
+    >>> check_if_on_list(Lists.ALLOWLIST, ['PSY', '2dd5mrQZvg6SmahdgVKDzh'])
+    False
+    >>> check_if_on_list(Lists.BLOCKLIST, ['PSY', '2dd5mrQZvg6SmahdgVKDzh'])
+    True
+    >>> check_if_on_list(Lists.BLOCKLIST, 'PSY')
+    False
     """
-    #entry = bin_search_on_list(list_name, artist)
+    if not isinstance(artist, list):
+        return False
     entry = search_list(list_name, artist)
     if entry: # Entry found
         if len(entry)+len(artist) == 4: # both have id
             if entry[1] != artist[1]: # names match, but ids don't -> id wrong
-                add_missing_id(list_name, artist[0], artist[1], entry)
+                add_missing_id(list_name, artist, entry)
         elif len(artist) == 2: # input has id, entry in list doesn't -> put it in
-            add_missing_id(list_name, artist[0], artist[1], entry)
+            add_missing_id(list_name, artist, entry)
         else: # either both have no id, or input has none. Nothing to do here
             pass
-        #print("True", entry, artist)
         return entry
-    #print("False", entry, artist)
     return False
 
-    # with open(list_name.value, 'r') as this_list:
-    #     csv_reader = csv.reader(this_list, delimiter=';')
-    #     for row in csv_reader:
-    #         if row[0] == artist[0]: # names match
-    #             if len(row)+len(artist) == 4: # has id
-    #                 if row[1] != artist[1]: # ids don't match, but names do -> id wrong
-    #                     add_missing_id(list_name, artist[0], artist[1])
-    #             else: # has no id
-    #                 add_missing_id(list_name, artist[0], artist[1])
-    #             return row
-    # return False
-
-
-def add_missing_id(list_name, artist_name, artist_id, entry):
+def add_missing_id(list_name, artist, entry):
     """
 
     Search list for artists that have no id
 
+    Parameters
+    ----------
+    list_name : Lists Enum
+    artist : List [str,str] (known to be true)
+    entry : List [str(,str)] (known to be on this list)
+
+    Returns
+    -------
+    `True` if id was already good or has been added or fixed, `False` if neither.
+
+    Examples
+    --------
+    >>> add_missing_id(Lists.ALLOWLIST, ['PSY', '2dd5mrQZvg6SmahdgVKDzh'], ['PSY'])
+    True
+    >>> add_missing_id(Lists.ALLOWLIST, ['PSY', '2dd5mrQZvg6SmahdgVKDzh'],
+                                        ['PSY', '2dd5mrQZvg6SmahdgVKDzh'])
+    True
+    >>> add_missing_id(Lists.ALLOWLIST, ['PSY', '2dd5mrQZvg6SmahdgVKDzh'],
+                                        ['PSY', 'aaaaaaaaaaaaaaaaaaaaaa'])
+    True
     """
-    #entry = check_if_on_list(list_name, [artist_name, artist_id])
-    #if not entry: # Artist not found
-    #    return False
+    # NOTE What if there are two artists, with the same name but different ids?
+    if not (isinstance(entry, list) and isinstance(artist, list)):
+        return False
     if len(entry) == 2: # Already has id
-        if re.search("^[0-9A-Za-z]{22}$", entry[1]) and entry[1] == artist_id:
+        if re.search("^[0-9A-Za-z]{22}$", entry[1]) and entry[1] == artist[1]:
             return True
         # ID is wrong! You almost got me in the first half
         entry = [entry[0]]
@@ -265,38 +300,99 @@ def add_missing_id(list_name, artist_name, artist_id, entry):
             read_csv = list(csv.reader(this_list, delimiter=';'))
         with open(list_name.value, 'w') as this_list:
             write_csv = csv.writer(this_list, delimiter=';')
+            fixed = False
             for line in read_csv:
-                if line[0] == artist_name:
-                    line.append(artist_id)
+                if not fixed:
+                    if line[0] == artist[0]:
+                        line = artist
+                        fixed = True
                 write_csv.writerow(line)
-        return True
+        return fixed
     return False # Something went wrong
-
 
 def delete_dupes_from_list(list_name):
     """
 
     Delete duplicates from list
 
+    Parameters
+    ----------
+    list_name : Lists Enum
+
+    Returns
+    -------
+    int of the number of duplicates that were removed
+
     """
+    # NOTE What if the same entry exists with and without an id?
     read_csv = []
     deleted_dupes = 0
-    with open(list_name.value, 'r') as this_list:
-        read_csv = list(csv.reader(this_list, delimiter=';'))
-    with open(list_name.value, 'w') as this_list:
-        write_csv = csv.writer(this_list, delimiter=';')
-        old_line = []
+    with open(list_name.value, 'r') as read_list:
+        read_csv = list(csv.reader(read_list, delimiter=';'))
+    with open(list_name.value, 'w') as write_list:
+        write_csv = csv.writer(write_list, delimiter=';')
+        seen = set()
         for line in read_csv:
-            if not old_line:
-                write_csv.writerow(line)
-                old_line = line
-                continue
-            if old_line == line:
+            if line in seen:
                 deleted_dupes += 1
-                continue
-            write_csv.writerow(line)
-            old_line = line
+            else:
+                seen.add(line)
+                write_csv.writerow(line)
     return deleted_dupes
+
+def compare_artists(line_in_csv, artist, write_csv):
+    """
+
+    Compare artist to line in csv file
+
+    Parameters
+    ----------
+    line_in_csv : List [str(, str)]
+    artist : List [str(,str)] or str
+    write_csv : _csv.writer object
+
+    Returns
+    -------
+    `True` if entry was deleted, `False` if not, else `IndexError`.
+
+    Examples
+    --------
+    >>> compare_artists(['PSY', '2dd5mrQZvg6SmahdgVKDzh'], ['PSY', '2dd5mrQZvg6SmahdgVKDzh'], csv)
+    True
+    >>> compare_artists(['PSY', '2dd5mrQZvg6SmahdgVKDzh'], ['PSY'], csv)
+    True
+    >>> compare_artists(['PSY', '2dd5mrQZvg6SmahdgVKDzh'], 'PSY', csv)
+    True
+    >>> compare_artists(['PSY'], ['PSY'], csv)
+    True
+    >>> compare_artists(['PSY'], ['PSY', '2dd5mrQZvg6SmahdgVKDzh'], csv)
+    True
+    >>> compare_artists(['PSY', '2dd5mrQZvg6SmahdgVKDzh'], '2dd5mrQZvg6SmahdgVKDzh', csv)
+    False
+    >>> compare_artists(['PSY', '2dd5mrQZvg6SmahdgVKDzh'],
+                        ['PSY', '2dd5mrQZvg6SmahdgVKDzh', 1], csv)
+    IndexError("Expected 2 or 1 arguments [name(,id)]")
+    """
+    len_line = len(line_in_csv)
+    # If there is not id in search
+    if artist[1] is None or len_line == 1:
+        # If the name matches
+        if artist[0] == line_in_csv[0]:
+            return True
+        write_csv.writerow(line_in_csv)
+        return False
+    # If there is an id
+    # If the entry in the list also has an id
+    if len_line == 2:
+        # If the id matches
+        if artist[1] == line_in_csv[1]:
+            return True
+        write_csv.writerow(line_in_csv)
+        return False
+    raise IndexError("Expected 2 or 1 arguments [name(,id)]")
+    # NOTE Gotta check the runtime here
+    # Could be improved by re-write in a new file and move
+    # Function call overhead is there, but negligible
 
 
 def delete_from_list(list_name, artist):
@@ -307,7 +403,7 @@ def delete_from_list(list_name, artist):
     Parameters
     ----------
     list_name : Lists Enum
-    artist : list item of name+id or str of name
+    artist : List [str(,str)] or str
 
     Returns
     -------
@@ -315,21 +411,19 @@ def delete_from_list(list_name, artist):
 
     Examples
     --------
-    >>> delete_from_list(Lists.ALLOWLIST, ['Billie Eilish', '6qqNVTkY8uBg9cP3Jd7DAH'])
+    >>> delete_from_list(Lists.ALLOWLIST, ['PSY', '2dd5mrQZvg6SmahdgVKDzh'])
     True
-    >>> delete_from_list(Lists.ALLOWLIST, ['Billie Eilish', '6qqNVTkY8uBg9cP3Jd7DAH'])
+    >>> delete_from_list(Lists.ALLOWLIST, ['PSY', '2dd5mrQZvg6SmahdgVKDzh'])
     False
     >>> delete_from_list(Lists.ALLOWLIST, ['Bilderbuch'])
     True
     >>> delete_from_list(Lists.ALLOWLIST, 'Frittenbude')
     True
-    >>> delete_from_list("Allowlist.csv", 'Gesaffelstein')
-    False
-
     """
+
     # Parameter checking
     # NOTE Should probably be it's own method
-    if not isinstance(list_name,Lists):
+    if not isinstance(list_name, Lists):
         return False
     if isinstance(artist, list):
         if len(artist) == 2:
@@ -342,7 +436,7 @@ def delete_from_list(list_name, artist):
             # Empty list, or list is too long
             return False
     else:
-        if isinstance(artist,str):
+        if isinstance(artist, str):
             # 'name' (Shouldn't even be possible)
             artist_name, artist_id = (artist, None)
         else:
@@ -355,18 +449,8 @@ def delete_from_list(list_name, artist):
     with open(list_name.value, 'w') as this_list:
         write_csv = csv.writer(this_list, delimiter=';')
         for line in read_csv:
-            # I have to write the whole file anyway I think, so no time lost
-            # First check the id, then the name -> safer, less possibility of false positive
-            # Gotta check the timing here, could be slower
-            if ((artist_id != line[1]) if artist_id and (len(line) == 2) else True):
-                if line[0] != artist_name:
-                    write_csv.writerow(line)
-                else:
-                    deleted_value = True
-            else:
-                deleted_value = True
+            compare_artists(line, (artist_name, artist_id), write_csv)
     return deleted_value
-
 
 def move_artist_between_lists(list_from, list_to, artist):
     """
@@ -377,7 +461,7 @@ def move_artist_between_lists(list_from, list_to, artist):
     ----------
     list_from : Lists Enum
     list_to : Lists Enum
-    artist : list item of name+id or str of name
+    artist : List [str(,str)] or str
 
     Returns
     -------
@@ -387,25 +471,23 @@ def move_artist_between_lists(list_from, list_to, artist):
     --------
     >>> move_artist_between_lists(Lists.ALLOWLIST,
                                   Lists.BLOCKLIST,
-                                  ['Billie Eilish', '6qqNVTkY8uBg9cP3Jd7DAH'])
+                                  ['PSY', '2dd5mrQZvg6SmahdgVKDzh'])
     True
     >>> move_artist_between_lists(Lists.ALLOWLIST,
                                   Lists.BLOCKLIST,
-                                  ['Billie Eilish', '6qqNVTkY8uBg9cP3Jd7DAH'])
+                                  ['PSY', '2dd5mrQZvg6SmahdgVKDzh'])
     False
-    >>> move_artist_between_lists(Lists.ALLOWLIST, ['Bilderbuch'])
+    >>> move_artist_between_lists(Lists.GREYLIST,
+                                  Lists.ALLOWLIST,
+                                  ['Bilderbuch'])
     True
-    >>> delete_from_list(Lists.ALLOWLIST, 'Frittenbude')
-    True
-    >>> delete_from_list("Allowlist", 'Gesaffelstein')
-    False
-
     """
     # Parameter checking
-    if not isinstance(list_from,Lists) or not isinstance(list_to,Lists):
+    if not isinstance(list_from, Lists) or not isinstance(list_to, Lists):
         return False
+
     if not isinstance(artist, list):
-        if not isinstance(artist,str):
+        if not isinstance(artist, str):
             return False
     else:
         # Artist is list
@@ -425,20 +507,24 @@ def remove_blocklisted(artist_dict, artist_set):
 
     Remove blocklisted artists
 
+    Parameters
+    ----------
+    artist_dict : dict
+    artist_set : set
+
+    Returns
+    -------
+    Trimmed artists_dict, artists_set and the number of removed artists
+
     """
-    removed_artists = 0
     artists_to_remove =[]
     for artist in artist_dict:
-        #entry = bin_search_on_list(Lists.BLOCKLIST, artist)
         #entry = search_list(Lists.BLOCKLIST, artist)
         entry = check_if_on_list(Lists.BLOCKLIST, [artist, artist_dict[artist]])
         if entry: # entry found
             #    # No id
-            removed_artists += 1
-            #print(artist)
-            # entry is just ['ARTISTNAME']
-            artist_set.discard(artist_dict[artist])
             artists_to_remove.append(artist)
     for artist in artists_to_remove:
+        artist_set.discard(artist_dict[artist])
         del artist_dict[artist]
-    return artist_dict, artist_set, removed_artists
+    return artist_dict, artist_set, len(artists_to_remove)

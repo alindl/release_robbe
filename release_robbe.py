@@ -711,11 +711,11 @@ def get_artists_from_list(spot_conn, list_name):
         if isinstance(artist, list):
             if len(artist) == 1:
                 artist_id = check_and_get_artist_id(spot_conn, artist[0])
-                fi.add_missing_id(list_name, artist[0], artist_id, artist)
+                fi.add_missing_id(list_name, [artist[0], artist_id], artist)
                 artist.append(artist_id)
         elif isinstance(artist, str):
             artist_id = check_and_get_artist_id(spot_conn, artist)
-            fi.add_missing_id(list_name, artist, artist_id, [artist])
+            fi.add_missing_id(list_name, [artist, artist_id], [artist])
             artist = [artist].append(artist_id)
         else:
             raise TypeError("Artist entry is neither list nor string type")
