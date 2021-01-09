@@ -75,7 +75,7 @@ def main():
         while state not in (States.NEW_RELEASES, States.TOP_10_GREY):
             state = menu(state)
             if state == States.EXIT:
-                #clear_screen()
+                clear_screen()
                 sys.exit()
 
         scope = 'playlist-read-collaborative \
@@ -211,7 +211,6 @@ def do_exit():
     Exit programm, but clear screen just before that
 
     """
-    clear_screen()
     return States.EXIT
 
 def menu(state):
