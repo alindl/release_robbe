@@ -1,9 +1,5 @@
 # Release Robbe
-Get and manage new songs and artists from Spotify
-
 ```
-　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　
-　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　
 　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　████████████          
 　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　  　　　　　　　　　　 　██░░░░░░░░░░░░██        
  　　░█▀▀█ █▀▀ █── █▀▀ █▀▀█ █▀▀ █▀▀ 　 ░█▀▀█ █▀▀█ █▀▀▄ █▀▀▄ █▀▀　      ██░░░░░░░░░░░░░░░░██      
@@ -24,9 +20,9 @@ Get and manage new songs and artists from Spotify
 　　　　　　　　　　　　　　　　　　    ██░░░░░░░░░░░░██████░░░░░░░░██████░░░░░░░░████  ████░░░░░░░░██
 　　　　　　　　　　　　　　　　　　　　　 ████████████　　   ██████████░░░░░░░░░░██　　　　　　████████  
 　　　　　　　　　　　　　　　　　　　　　　　 　　　　　　　　　　　　     ██████████                      
-　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　
-　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　
 ```
+
+Get and manage new songs and artists from Spotify
 
 ## What's it gonna do?
 Let's go through the workflow of the thing:
@@ -94,3 +90,6 @@ Let's make it short and simple:
     - Worth the effort? Needs more data at duplicate detection 
         - More data, slower time complexity because of data structure
 - Window sizes
+- Documentation
+- Search optimization
+- Search artists on spotify and add them
