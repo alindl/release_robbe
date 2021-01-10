@@ -16,6 +16,7 @@ import math
 import os.path
 import sys
 from enum import Enum
+from operator import itemgetter
 import pygame
 from dialog import Dialog
 import spotipy
@@ -69,7 +70,6 @@ def main():
         pygame.mixer.init()
         pygame.mixer.music.load("mach_die_robbe.mp3")
         pygame.mixer.music.play(-1)
-
     state = States.START
     while True:
         while state not in (States.NEW_RELEASES, States.TOP_10_GREY):
@@ -97,10 +97,22 @@ def main():
             get_songs(spot_conn, state)
 
             if not add_songs_to_playlist(spot_conn):
-                DIALOG.msgbox("Something didn't go right, while adding songs to your playlist")
+                size = get_window_size((5, 5), (10, 28))
+                DIALOG.msgbox(text="\n\nSomething didn't go right, "+ \
+                                   "while adding songs to your playlist.",
+                              height=size[0], width=size[1])
             else:
                 conf.write_time()
-                DIALOG.msgbox("Done!")
+                text="""
+                ██████╗░░█████╗░███╗░░██╗███████╗██╗
+                ██╔══██╗██╔══██╗████╗░██║██╔════╝██║
+                ██║░░██║██║░░██║██╔██╗██║█████╗░░██║
+                ██║░░██║██║░░██║██║╚████║██╔══╝░░╚═╝
+                ██████╔╝╚█████╔╝██║░╚███║███████╗██╗
+                ╚═════╝░░╚════╝░╚═╝░░╚══╝╚══════╝╚═╝"""
+
+                size = get_window_size((12, 0), (41, 0))
+                DIALOG.msgbox(text, height=size[0], width=size[1])
 
             state = States.START
             clear_screen()
@@ -122,9 +134,9 @@ def start_menu():
 　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　
 　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　████████████          
 　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　██░░░░░░░░░░░░██        
-　　 ░█▀▀█ █▀▀ █── █▀▀ █▀▀█ █▀▀ █▀▀ 　 ░█▀▀█ █▀▀█ █▀▀▄ █▀▀▄ █▀▀　　　　 ██░░░░░░░░░░░░░░░░██      
-　　 ░█▄▄▀ █▀▀ █── █▀▀ █▄▄█ ▀▀█ █▀▀ 　 ░█▄▄▀ █──█ █▀▀▄ █▀▀▄ █▀▀　　　 ██░░░░ 　 ░░░░░░ 　 ░░██    
-　　 ░█─░█ ▀▀▀ ▀▀▀ ▀▀▀ ▀──▀ ▀▀▀ ▀▀▀ 　 ░█─░█ ▀▀▀▀ ▀▀▀─ ▀▀▀─ ▀▀▀　　　 ██░░░░　██░░░░░░██　░░██    
+　　 ░█▀▀█ █▀▀ █　 █▀▀ █▀▀█ █▀▀ █▀▀ 　 ░█▀▀█ █▀▀█ █▀▀▄ █▀▀▄ █▀▀　　　　 ██░░░░░░░░░░░░░░░░██      
+　　 ░█▄▄▀ █▀▀ █　 █▀▀ █▄▄█ ▀▀█ █▀▀ 　 ░█▄▄▀ █　█ █▀▀▄ █▀▀▄ █▀▀　　　 ██░░░░ 　 ░░░░░░ 　 ░░██    
+　　 ░█ ░█ ▀▀▀ ▀▀▀ ▀▀▀ ▀　▀ ▀▀▀ ▀▀▀ 　 ░█ ░█ ▀▀▀▀ ▀▀▀　▀▀▀　▀▀▀　　　 ██░░░░　██░░░░░░██　░░██    
 　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　██░░░░　██░░░░░░██　░░██    
 　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　██░░░░░░░░░░██░░░░░░░░██    
 　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　██░░░░████░░░░░░████░░██    
@@ -160,8 +172,11 @@ def start_menu():
                 "Modify source of artists (playlist/allowlist/following)"),
                (States.EXIT.value,
                 "Quit")]
+
+    size = get_window_size((31, len(choices)),
+                           (48, len(max(choices, key=lambda item: len(item[1]))[1])))
     code, state = DIALOG.menu(text, choices=choices, no_tags=True,
-            no_cancel=True, height=39, width=108, tab_len=1)
+            no_cancel=True, height=size[0], width=size[1], tab_len=1)
     if code != DIALOG.OK:
         return States.EXIT
     return States(state)
@@ -260,13 +275,59 @@ def source_chooser():
 
     """
     text = """ Where should the artists come from? """
-    code, source = DIALOG.menu(text, choices=[("playlists", "Chosen Playlists"),
-                                              ("allowlist", "Allowlist"),
-                                              ("saved", "Artists I follow")], no_tags=True)
+    choices = [("playlists", "Chosen Playlists"),
+               ("allowlist", "Allowlist"),
+               ("saved", "Artists I follow")]
+    size = get_window_size((7, len(choices)),
+                       (25, len(max(choices, key=lambda item: len(item[1]))[1])))
+    code, source = DIALOG.menu(text, choices=choices, no_tags=True, height=size[0], width=size[1])
 
     if code == DIALOG.OK:
         conf.set_key('Other', 'source', source)
     return States.START
+
+def get_window_size(height_boundries, width_boundries):
+    """
+    Calculate best suiting window size
+    """
+
+    max_height, max_width = DIALOG.maxsize()
+    height, width = None, None
+
+    if height_boundries is not None:
+        min_height, input_height = height_boundries
+        input_height = input_height + min_height
+        golden_height = round((max_height/3)*2)
+
+        if input_height < golden_height:
+            height = input_height
+        else:
+            height = golden_height
+
+        if min_height > golden_height:
+            height = max_height # or = 0 ??
+
+    if width_boundries is not None:
+        min_width, input_width = width_boundries
+        input_width = input_width + min_width
+        golden_width = round((max_width/3)*2)
+
+        if input_width < golden_width:
+            width = input_width
+        else:
+            width = golden_width
+
+        if min_width > golden_width:
+            width = max_width # or = 0 ??
+
+    return height, width
+
+    #height = min_height if input_height < min_height else input_height
+    #if height > max_height:
+    #    height = 0
+    #width = min_width if input_width < min_width else input_width
+    #if width > max_width:
+    #    width = 0
 
 
 def list_and_push_artists(from_list):
@@ -281,15 +342,21 @@ def list_and_push_artists(from_list):
         DIALOG.msgbox("List is empty.")
         return False
 
+    longest_artist_name = 0
     for i, artist in enumerate(artists):
         #artist = artists[i]
         if isinstance(artist, list):
             choices.append((str(i), artist[0], False))
+            if len(artist[0]) > longest_artist_name:
+                longest_artist_name = len(artist[0])
         else:
             choices.append((str(i), artist, False))
-    text = "Which artists would you like to push from %s" % (from_list.name)
+            if len(artist) > longest_artist_name:
+                longest_artist_name = len(artist)
+    text = "Which artists would you like to push from %s?" % (from_list.name)
+    size = get_window_size((10, len(choices)), (22, longest_artist_name))
     code, tags = DIALOG.checklist(text=text, cancel_label="Back",
-                                  choices=choices, no_tags=True)
+                                  choices=choices, no_tags=True, height=size[0], width=size[1])
 
     if code == DIALOG.OK:
         text = "Where should these artists be pushed to?"
@@ -299,9 +366,11 @@ def list_and_push_artists(from_list):
         for choice in choices:
             if choice[0] == from_list.value:
                 choices.remove(choice)
-        code, to_list = DIALOG.menu(text, choices=choices,
-                                    cancel_label="Abort",
-                                    no_tags=True)
+
+        size = get_window_size((7, len(choices)),
+                               (25, len(max(choices, key=lambda item: len(item[1]))[1])))
+        code, to_list = DIALOG.menu(text, choices=choices, cancel_label="Abort", no_tags=True,
+                                    height=size[0], width=size[1])
     else:
         return True
 
@@ -325,7 +394,10 @@ def search_and_push_artist(from_list):
     """
     text = """ Name of artist """
     entry = None
-    code, artist = DIALOG.inputbox(text, cancel_label="Abort")
+    size = get_window_size((8, 0),
+                           (40, 0))
+    code, artist = DIALOG.inputbox(text, cancel_label="Abort",
+                                   height=size[0], width=size[1])
 
     if code == DIALOG.OK:
         entry = fi.check_if_on_list(from_list, [artist])
@@ -340,9 +412,10 @@ def search_and_push_artist(from_list):
         for choice in choices:
             if choice[0] == from_list.value:
                 choices.remove(choice)
-        code, to_list = DIALOG.menu(text, choices=choices,
-                                    cancel_label="Abort",
-                                    no_tags=True)
+        size = get_window_size((7, len(choices)),
+                           (30, len(max(choices, key=lambda item: len(item[1]))[1])))
+        code, to_list = DIALOG.menu(text, choices=choices, cancel_label="Abort", no_tags=True,
+                                    height=size[0], width=size[1])
         if code == DIALOG.OK:
             to_list = LIST_DICT[to_list]
             if fi.move_artist_between_lists(from_list, to_list, entry):
@@ -358,8 +431,11 @@ def edit_chooser(from_list, referrer):
     """
     text = """ Do you have a specific artist in mind or \
             do you want to check the whole %s? """ % (from_list.name)
-    code, tag = DIALOG.menu(text, choices=[("specific", "Specific artist"),
-                                           ("list", "Whole list")], no_tags=True)
+    choices = [("specific", "Specific artist"), ("list", "Whole list")]
+    size = get_window_size((8, len(choices)),
+                           (30, len(max(choices, key=lambda item: len(item[1]))[1])))
+    code, tag = DIALOG.menu(text, choices=choices, no_tags=True,
+                                           height=size[0], width=size[1])
 
     while code == DIALOG.OK:
         if tag == "specific":
@@ -370,9 +446,10 @@ def edit_chooser(from_list, referrer):
             if not list_and_push_artists(from_list):
                 return referrer
 
-        code, tag = DIALOG.menu(text, choices=[("specific", "Specific artist"),
-                                               ("list", "Whole list")],
-                                cancel_label="Back", no_tags=True)
+        size = get_window_size((8, len(choices)),
+                               (30, len(max(choices, key=lambda item: len(item[1]))[1])))
+        code, tag = DIALOG.menu(text, choices=choices, cancel_label="Back", no_tags=True,
+                                height=size[0], width=size[1])
     if referrer == States.POP_GREY:
         return States.START
     return States.LISTS
@@ -386,10 +463,13 @@ def list_chooser():
 
     """
     text = """ Which list do you want to edit? """
-    code, from_list = DIALOG.menu(text, choices=[(fi.Lists.ALLOWLIST.value, "Allowlist"),
-                                                 (fi.Lists.GREYLIST.value, "Greylist"),
-                                                 (fi.Lists.BLOCKLIST.value, "Blocklist")],
-                                  no_tags=True)
+    choices = [(fi.Lists.ALLOWLIST.value, "Allowlist"),
+               (fi.Lists.GREYLIST.value, "Greylist"),
+               (fi.Lists.BLOCKLIST.value, "Blocklist")]
+    size = get_window_size((7, len(choices)),
+                           (29, len(max(choices, key=lambda item: len(item[1]))[1])))
+    code, from_list = DIALOG.menu(text, choices=choices,
+                                  no_tags=True, height=size[0], width=size[1])
     if code == DIALOG.OK:
         from_list = LIST_DICT[from_list]
         return edit_chooser(from_list, States.LISTS)
@@ -409,13 +489,13 @@ def configure_prog():
     elements = [
         ("Username", 1, 1,
          info[0] if info[0] else "xXspice_girls_4_lifeXx",
-         1, 20, 32, 32),
+         1, 20, 64, 0),
         ("Client ID", 2, 1,
          info[1] if info[1] else "some32alphanumericcharacters",
-         2, 20, 32, 32),
+         2, 20, 40, 0),
         ("Client Secret", 3, 1,
          info[2] if info[2] else "other32alphanumericcharacters",
-         3, 20, 32, 32),
+         3, 20, 40, 0),
         ("Country", 4, 1,
          info[3] if info[3] else "US",
          4, 20, 10, 2),
@@ -430,15 +510,15 @@ def configure_prog():
          7, 20, 32, 32)
         ]
 
-    height = 14 + add_height
+    size = get_window_size((7, len(elements)+error_msg.count('\n')),
+                           (30, len(max(info, key=len))))
     code, fields = DIALOG.form("Please fill in your Spotify credentials:" + error_msg,
-                               elements, width=80, height=height)
+                               elements, height=size[0], width=size[1])
 
     if code != DIALOG.OK:
         return States.START
 
     valid, error_msg, add_height = conf.check_credentials(fields)
-    height = 14 + add_height
 
     while not valid:
         elements = [
@@ -450,13 +530,14 @@ def configure_prog():
             ("Greylist", 6, 1, fields[5], 6, 20, 32, 32),
             ("Blocklist", 7, 1, fields[6], 7, 20, 32, 32)
             ]
+        size = get_window_size((7, len(elements)+error_msg.count('\n')),
+                               (30, len(max(info, key=len))))
         code, fields = DIALOG.form("Please fill in your Spotify credentials:" + error_msg,
-                                   elements, width=80, height=height)
+                                   elements, height=size[0], width=size[1])
         if code != DIALOG.OK:
             return States.START
 
         valid, error_msg, add_height = conf.check_credentials(fields)
-        height = 14 + add_height
 
     if code == DIALOG.OK:
         conf.set_key('Auth', 'username', fields[0])
@@ -646,7 +727,9 @@ def choose_dest_playlist(spot_conn):
 
     text = """Where should those %d songs be added to?""" % (len(ALL_SONGS))
 
-    code, tag = DIALOG.menu(text, choices=choices)
+    size = get_window_size((10, len(choices)),
+                       (15, len(max(choices, key=lambda item: len(item[0]))[0])))
+    code, tag = DIALOG.menu(text, choices=choices, height=size[0], width=size[1])
     if code == DIALOG.OK:
         return [x for x in playlists if x['name'] == tag][0]['id']
     return False
@@ -662,8 +745,10 @@ def choose_playlists(spot_conn):
 
     choices = list(map(lambda playlist: (playlist['name'], "", False), playlists))
 
+    size = get_window_size((10, len(choices)),
+                       (22, len(max(choices, key=lambda item: len(item[0]))[0])))
     code, tags = DIALOG.checklist(text="Which playlists would you like to search for artists?",
-                                  choices=choices)
+                                  choices=choices, height=size[0], width=size[1])
     if code == DIALOG.OK:
         if len(tags) < 1:
             return False
@@ -802,7 +887,9 @@ def get_top_songs(spot_conn):
     """
     inv_artists_dict = {v: k for k, v in ARTISTS_DICT.items()}
     i = 0
-    DIALOG.gauge_start(text="Finding tracks", percent=0)
+
+    size = get_window_size(None, (10, len(max(inv_artists_dict, key=len))))
+    DIALOG.gauge_start(text="Finding tracks", percent=0, width=size[1])
     for artist_id in ARTISTS_SET:
         artist_name = inv_artists_dict[artist_id]
         DIALOG.gauge_update(text="Getting top tracks by %s" % (artist_name),
@@ -819,18 +906,11 @@ def get_new_songs(spot_conn):
     Get new songs
 
     """
-    standard_choices = [("A", "Only add to new songs"),
-                        ("W", "Add new songs and add artist to allowlist"),
-                        ("I", "Ignore new songs of this artist"),
-                        ("B", "Add artist to blocklist and ignore songs"),
-                        ("AA", "Add ALL new songs of new artists"),
-                        ("WA", "Add ALL new songs and send ALL new artists to allowlist"),
-                        ("IA", "Ignore ALL new songs from new artists"),
-                        ("BA", "Ignore ALL new songs and send ALL new artists to blocklist")]
     inv_artists_dict = {v: k for k, v in ARTISTS_DICT.items()}
     i = 1
     skip_all = False
-    DIALOG.gauge_start(text="Finding tracks", percent=0)
+    size = get_window_size(None, (32, len(max(inv_artists_dict, key=len))))
+    DIALOG.gauge_start(text="Finding tracks", percent=0, width=size[1])
     for artist_id in ARTISTS_SET:
         artist_name = inv_artists_dict[artist_id]
         artist_info = [artist_name, artist_id]
@@ -854,14 +934,31 @@ def get_new_songs(spot_conn):
             if not skip_all:
                 text = """This is a new one! Added to greylist. \
                           What should happen to %s?""" % (artist_name)
+
+                standard_choices = [
+                                    ("I", "Ignore new songs of %s" % (artist_name)),
+                                    ("IA", "Ignore new songs from ALL new artists"),
+                                    ("W", "Add new songs and add %s to allowlist" % (artist_name)),
+                                    ("WA", "Add new songs and send ALL new artists to allowlist"),
+                                    ("B", "Add %s to blocklist" % (artist_name)),
+                                    ("A", "Only add to new songs by %s" % (artist_name)),
+                                    ("AA", "Add new songs from ALL new artists"),
+                                    ("BA", "Send ALL new artists to blocklist"),
+                                   ]
+
                 choices = standard_choices
 
                 #DIALOG.clear()
-                code, tag = DIALOG.menu(text, width=0, choices=choices, no_tags=True)
+                size = get_window_size((8, len(choices)),
+                                       (22, max(len(max(choices, key=lambda item: len(item[1]))[1]),
+                                               len(artist_name))))
+                code, tag = DIALOG.menu(text, choices=choices, no_tags=True,
+                                        height=size[0], width=size[1])
                 if code != DIALOG.OK:
                     return False
                 if tag in ("AA", "WA", "IA", "BA"):
                     skip_all = True
+                size = get_window_size(None, (32, len(max(inv_artists_dict, key=len))))
                 DIALOG.gauge_start(text="Finding tracks by %s" % (artist_name),
                                    percent=round((i/len(ARTISTS_SET))*100))
             else:
@@ -920,9 +1017,10 @@ def add_songs_to_playlist(spot_conn):
 
     """
     song_list = []
-    text = """ Do you wanna add all those %d songs?""" % (len(ALL_SONGS))
+    text = """\n\nDo you wanna add all those %d songs?""" % (len(ALL_SONGS))
 
-    if DIALOG.yesno(text) == DIALOG.OK:
+    size = get_window_size((5, 5), (10, 15))
+    if DIALOG.yesno(text, height=size[0], width=size[1]) == DIALOG.OK:
         dest_playlist = choose_dest_playlist(spot_conn)
         for song in ALL_SONGS:
             song_list.append(song)

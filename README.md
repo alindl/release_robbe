@@ -65,11 +65,21 @@ Let's make it short and simple:
 - Those details are going to stay in a local configuration file
 - Done, here's a cookie for your effort 🍪
 
-#TODO
+# TODO
 - Track duplication detection: Same name && length -> duplicate
     - Worth the effort? Needs more data at duplicate detection 
         - More data, slower time complexity because of data structure
 - Window sizes
 - Documentation
 - Search optimization
+- Fuzzy search, because as of now, searching a list through user input is kinda useless
 - Search artists on spotify and add them
+
+
+- Typos
+- Some window sizes wrong
+- Bobby "talks" to you
+- Source also influences Top 10 grey 
+- Major rehaul of the "new releases" way of deciding on new artists
+    - Bunch up new artists, decide on them at the end 
+    - Split artist and new songs decision
