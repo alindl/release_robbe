@@ -156,32 +156,24 @@ def check_credentials(information):
     r"|TC|TV|UG|UA|AE|GB|US|UM|UY|UZ|VU|VE|VN|VG|VI|WF|EH|YE|ZM|ZW)$")
     re_file = re.compile(r"^\/?([A-z0-9-_+]+\/)*([A-z0-9]+\.(csv))$")
 
-    additional_height = 0
     error_msg = ""
 
     if not information[0]:
-        additional_height += 1
         error_msg += "\n· No Username"
     if not re.search(re_client, information[1]):
-        additional_height += 1
         error_msg += "\n· Not a valid Client ID"
     if not re.search(re_client, information[2]):
-        additional_height += 1
         error_msg += "\n· Not a valid Client Secret"
     if not re.search(re_iso_3166_1_alpha_2, information[3]):
-        additional_height += 1
         error_msg += "\n· Not a valid two-letter country code(ISO 3166-1 alpha-2)"
     if not re.search(re_file, information[4]):
-        additional_height += 1
         error_msg += "\n· Allowlist does not have a valid filename/path"
     if not re.search(re_file, information[5]):
-        additional_height += 1
         error_msg += "\n· Greylist does not have a valid filename/path"
     if not re.search(re_file, information[6]):
-        additional_height += 1
         error_msg += "\n· Blocklist does not have a valid filename/path"
 
-    if additional_height != 0:
-        return False, error_msg, additional_height
+    if error_msg:
+        return False, error_msg
 
-    return True, error_msg, additional_height
+    return True, error_msg
